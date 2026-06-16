@@ -9,6 +9,7 @@ import java.io.*;
 import java.util.Random;
 import java.util.Vector;
 import java.util.Enumeration;
+import java.util.Hashtable;
 
 public class HDD40Player extends MIDlet implements CommandListener {
 
@@ -19,7 +20,6 @@ public class HDD40Player extends MIDlet implements CommandListener {
     private List mainMenu;
     private PlaylistBrowser playlistBrowser;
     
-    // Элементы меню
     private Form urlForm;
     private TextField nameField;
     private TextField urlField;
@@ -32,12 +32,10 @@ public class HDD40Player extends MIDlet implements CommandListener {
     private ChoiceGroup lcdColor1Choice;
     private ChoiceGroup lcdColor2Choice;
     
-    // Элементы для LCD Визуализации
     private TextField lcdVisTextField;
     private ChoiceGroup lcdVisSizeChoice;
     private ChoiceGroup lcdVisColorChoice;
     
-    // Элементы управления обводкой
     private ChoiceGroup skOutlineChoice;
     private ChoiceGroup skColorChoice;
     private Command saveSettingsCmd;
@@ -46,7 +44,6 @@ public class HDD40Player extends MIDlet implements CommandListener {
     private TextBox logBox;
     private Command backCmd;
     
-    // --- ГЛОБАЛЬНЫЕ НАСТРОЙКИ ---
     public int bufferTimeSec = 2; 
     public int visMode = 2;       
     public int visSubMode = 0;    
@@ -95,7 +92,7 @@ public class HDD40Player extends MIDlet implements CommandListener {
             mainMenu = new List("Menu", List.IMPLICIT);
             mainMenu.append("Settings", null);
             mainMenu.append("Add Custom URL", null);
-            mainMenu.append("Import M3U/PLS Playlist", null); // Обновленный пункт меню
+            mainMenu.append("Import M3U/PLS Playlist", null); 
             mainMenu.append("About", null);
             mainMenu.append("Debug Logs", null);
             
@@ -362,7 +359,6 @@ public class HDD40Player extends MIDlet implements CommandListener {
     }
 }
 
-// --- БРАУЗЕР ПЛЕЙЛИСТОВ (M3U / PLS) ---
 class PlaylistBrowser extends List implements CommandListener {
     private HDD40Player midlet;
     private String currentPath = "";
@@ -398,7 +394,6 @@ class PlaylistBrowser extends List implements CommandListener {
             while (e.hasMoreElements()) {
                 String f = (String) e.nextElement();
                 String fLower = f.toLowerCase();
-                // Показываем папки, .m3u и .pls файлы
                 if (f.endsWith("/") || fLower.endsWith(".m3u") || fLower.endsWith(".pls")) {
                     append(f, null);
                 }
@@ -410,6 +405,13 @@ class PlaylistBrowser extends List implements CommandListener {
         }
     }
     
+    private String extractNameFromUrl(String url) {
+        String name = url;
+        if (name.startsWith("http://")) name = name.substring(7);
+        else if (name.startsWith("https://")) name = name.substring(8);
+        return name;
+    }
+    
     private void parsePlaylist(String path) {
         boolean isPls = path.toLowerCase().endsWith(".pls");
         try {
@@ -418,64 +420,108 @@ class PlaylistBrowser extends List implements CommandListener {
             InputStreamReader reader = new InputStreamReader(is, "UTF-8");
             
             StringBuffer lineBuf = new StringBuffer();
-            String tempName = "Imported Station";
             int c;
             
-            while ((c = reader.read()) != -1) {
-                if (c == '\n' || c == '\r') {
-                    if (lineBuf.length() > 0) {
-                        String line = lineBuf.toString().trim();
-                        String lineLower = line.toLowerCase();
-                        
-                        if (isPls) {
-                            if (lineLower.startsWith("title")) {
-                                int eq = line.indexOf('=');
-                                if (eq != -1) tempName = line.substring(eq + 1).trim();
-                            } else if (lineLower.startsWith("file")) {
+            if (isPls) {
+                // Словари для умного парсинга вне зависимости от порядка строк
+                Hashtable files = new Hashtable();
+                Hashtable titles = new Hashtable();
+                Vector keysOrder = new Vector();
+
+                while ((c = reader.read()) != -1) {
+                    if (c == '\n' || c == '\r') {
+                        if (lineBuf.length() > 0) {
+                            String line = lineBuf.toString().trim();
+                            String lineLower = line.toLowerCase();
+                            
+                            if (lineLower.startsWith("file")) {
                                 int eq = line.indexOf('=');
                                 if (eq != -1) {
-                                    String url = line.substring(eq + 1).trim();
-                                    if (url.startsWith("http")) {
-                                        midlet.stationNames.addElement(tempName);
-                                        midlet.stationUrls.addElement(url);
-                                        tempName = "Imported Station"; // Сброс
-                                    }
+                                    String key = lineLower.substring(4, eq).trim();
+                                    String val = line.substring(eq + 1).trim();
+                                    files.put(key, val);
+                                    if (!keysOrder.contains(key)) keysOrder.addElement(key);
+                                }
+                            } else if (lineLower.startsWith("title")) {
+                                int eq = line.indexOf('=');
+                                if (eq != -1) {
+                                    String key = lineLower.substring(5, eq).trim();
+                                    String val = line.substring(eq + 1).trim();
+                                    titles.put(key, val);
+                                    if (!keysOrder.contains(key)) keysOrder.addElement(key);
                                 }
                             }
-                        } else {
-                            // Логика M3U
+                            lineBuf.setLength(0);
+                        }
+                    } else {
+                        lineBuf.append((char)c);
+                    }
+                }
+                
+                // Обработка последней строки, если нет Enter в конце
+                if (lineBuf.length() > 0) {
+                    String line = lineBuf.toString().trim();
+                    String lineLower = line.toLowerCase();
+                    if (lineLower.startsWith("file")) {
+                        int eq = line.indexOf('=');
+                        if (eq != -1) {
+                            String key = lineLower.substring(4, eq).trim();
+                            String val = line.substring(eq + 1).trim();
+                            files.put(key, val);
+                            if (!keysOrder.contains(key)) keysOrder.addElement(key);
+                        }
+                    } else if (lineLower.startsWith("title")) {
+                        int eq = line.indexOf('=');
+                        if (eq != -1) {
+                            String key = lineLower.substring(5, eq).trim();
+                            String val = line.substring(eq + 1).trim();
+                            titles.put(key, val);
+                            if (!keysOrder.contains(key)) keysOrder.addElement(key);
+                        }
+                    }
+                }
+                
+                // Аккуратная сборка готовых станций из словаря
+                for (int i = 0; i < keysOrder.size(); i++) {
+                    String key = (String) keysOrder.elementAt(i);
+                    String url = (String) files.get(key);
+                    if (url != null && url.startsWith("http")) {
+                        String title = (String) titles.get(key);
+                        if (title == null || title.length() == 0) {
+                            title = extractNameFromUrl(url); // Резервное имя из URL
+                        }
+                        midlet.stationNames.addElement(title);
+                        midlet.stationUrls.addElement(url);
+                    }
+                }
+                
+            } else {
+                // Стандартный парсинг M3U
+                String tempName = "";
+                while ((c = reader.read()) != -1) {
+                    if (c == '\n' || c == '\r') {
+                        if (lineBuf.length() > 0) {
+                            String line = lineBuf.toString().trim();
                             if (line.startsWith("#EXTINF:")) {
                                 int comma = line.indexOf(',');
                                 if (comma != -1) tempName = line.substring(comma + 1).trim();
                             } else if (line.startsWith("http")) {
+                                if (tempName.length() == 0) tempName = extractNameFromUrl(line);
                                 midlet.stationNames.addElement(tempName);
                                 midlet.stationUrls.addElement(line);
-                                tempName = "Imported Station"; // Сброс
+                                tempName = ""; 
                             }
+                            lineBuf.setLength(0);
                         }
-                        lineBuf.setLength(0);
+                    } else {
+                        lineBuf.append((char)c);
                     }
-                } else {
-                    lineBuf.append((char)c);
                 }
-            }
-            
-            // Проверка последней строки без переноса (EOF)
-            if (lineBuf.length() > 0) {
-                String line = lineBuf.toString().trim();
-                if (isPls) {
-                    if (line.toLowerCase().startsWith("file")) {
-                        int eq = line.indexOf('=');
-                        if (eq != -1) {
-                            String url = line.substring(eq + 1).trim();
-                            if (url.startsWith("http")) {
-                                midlet.stationNames.addElement(tempName);
-                                midlet.stationUrls.addElement(url);
-                            }
-                        }
-                    }
-                } else {
+                
+                if (lineBuf.length() > 0) {
+                    String line = lineBuf.toString().trim();
                     if (line.startsWith("http")) {
+                        if (tempName.length() == 0) tempName = extractNameFromUrl(line);
                         midlet.stationNames.addElement(tempName);
                         midlet.stationUrls.addElement(line);
                     }
@@ -524,7 +570,6 @@ class PlaylistBrowser extends List implements CommandListener {
         }
     }
 }
-// ------------------------------------------
 
 class WinampUI extends Canvas implements Runnable {
     private HDD40Player midlet;
@@ -536,7 +581,7 @@ class WinampUI extends Canvas implements Runnable {
     private boolean isRunning = true;
     private boolean showPlaylist = true;
     private int playlistCursor = 0; 
-    private int playlistOffset = 0; // Переменная для прокрутки окна плейлиста
+    private int playlistOffset = 0; 
     private boolean showDeleteConfirm = false;
 
     private int marqueeOffset = 0;
@@ -569,7 +614,6 @@ class WinampUI extends Canvas implements Runnable {
         this.playlistCursor = idx;
         this.marqueeOffset = 0; 
         
-        // Синхронизация окна при добавлении новой станции
         if (playlistCursor < playlistOffset || playlistCursor >= playlistOffset + 5) {
             playlistOffset = playlistCursor - 4;
             if (playlistOffset < 0) playlistOffset = 0;
@@ -822,16 +866,13 @@ class WinampUI extends Canvas implements Runnable {
             g.setClip(0, 0, w, h);
         }
 
-        // --- УМНАЯ ПРОКРУТКА ПЛЕЙЛИСТА (ФИКС НАЛОЖЕНИЯ) ---
         if (showPlaylist) {
             g.setFont(sysFont);
             g.setClip(6, plY + 1, w - 12, plH - 2);
             
-            // Вычисляем максимум станций на экране, оставляя 25px снизу для софт-кнопок
             int maxItems = (plH - 25) / 16; 
             if (maxItems < 1) maxItems = 1;
             
-            // Обновляем окно видимости (скроллинг)
             if (playlistCursor < playlistOffset) {
                 playlistOffset = playlistCursor;
             } else if (playlistCursor >= playlistOffset + maxItems) {
@@ -843,7 +884,6 @@ class WinampUI extends Canvas implements Runnable {
                 endIdx = midlet.stationNames.size();
             }
 
-            // Рисуем только станции из видимого окна
             for (int i = playlistOffset; i < endIdx; i++) {
                 int itemY = plY + 5 + ((i - playlistOffset) * 16);
                 if (i == playlistCursor) {
@@ -930,7 +970,6 @@ class WinampUI extends Canvas implements Runnable {
                     currentStationIdx = midlet.stationNames.size() - 1;
                     stopAudio(); 
                 }
-                // Проверяем рамки смещения окна
                 if (playlistOffset > playlistCursor) playlistOffset = playlistCursor;
                 
                 midlet.saveSettings(); 
@@ -1031,14 +1070,37 @@ class WinampUI extends Canvas implements Runnable {
         isPlaying = true;
         marqueeOffset = 0; lcdScrollOffset = 0; lcdVisScrollOffset = 0;
         startTime = System.currentTimeMillis();
+        
         midlet.log("----");
+        midlet.log("Idx: " + currentStationIdx);
 
         audioThread = new Thread(new Runnable() {
             public void run() {
                 try {
-                    String url = (String) midlet.stationUrls.elementAt(currentStationIdx);
-                    audioPlayer = Manager.createPlayer(url);
+                    String rawUrl = (String) midlet.stationUrls.elementAt(currentStationIdx);
+                    String playUrl = rawUrl;
+                    String lowerUrl = playUrl.toLowerCase();
+                    
+                    // Умная подстановка: добавляем ?ext=.mp3 только если нет известных расширений
+                    if (!lowerUrl.endsWith(".mp3") && !lowerUrl.endsWith(".aac") && !lowerUrl.endsWith(".ogg")) {
+                        if (playUrl.indexOf('?') == -1) {
+                            playUrl += "?ext=.mp3";
+                        } else {
+                            playUrl += "&ext=.mp3";
+                        }
+                    }
+                    
+                    midlet.log("Raw URL: " + rawUrl);
+                    if (!rawUrl.equals(playUrl)) {
+                        midlet.log("Fixed URL: " + playUrl);
+                    }
+                    
+                    midlet.log("Player creating...");
+                    audioPlayer = Manager.createPlayer(playUrl);
+                    
                     audioPlayer.realize();
+                    midlet.log("State: REALIZED");
+                    
                     audioPlayer.setLoopCount(1);
                     audioPlayer.addPlayerListener(new PlayerListener() {
                         public void playerUpdate(Player p, String event, Object eventData) {
@@ -1050,14 +1112,19 @@ class WinampUI extends Canvas implements Runnable {
                     });
 
                     if (midlet.bufferTimeSec > 0) {
+                        midlet.log("Prefetching...");
                         audioPlayer.prefetch(); 
+                        midlet.log("Prefetch done. Wait " + midlet.bufferTimeSec + "s...");
                         try { Thread.sleep(midlet.bufferTimeSec * 1000); } catch (Exception t) {}
                     }
 
                     volumeControl = (VolumeControl) audioPlayer.getControl("VolumeControl");
                     if (volumeControl != null) volumeControl.setLevel(volume * 10);
+                    
+                    midlet.log("Starting playback...");
                     audioPlayer.start();
-                    midlet.log("PLAYING!");
+                    midlet.log("State: PLAYING!");
+                    
                 } catch (Exception e) {
                     midlet.log("ERR: " + e.toString());
                     stopAudioSilent(); 
