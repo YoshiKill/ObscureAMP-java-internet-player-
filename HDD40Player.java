@@ -17,9 +17,9 @@ public class HDD40Player extends MIDlet implements CommandListener {
 
     private WinampUI ui;
     private List mainMenu;
-    private M3UBrowser m3uBrowser;
+    private PlaylistBrowser playlistBrowser;
     
-    // Элементы меню
+    // Р­Р»РµРјРµРЅС‚С‹ РјРµРЅСЋ
     private Form urlForm;
     private TextField nameField;
     private TextField urlField;
@@ -32,12 +32,12 @@ public class HDD40Player extends MIDlet implements CommandListener {
     private ChoiceGroup lcdColor1Choice;
     private ChoiceGroup lcdColor2Choice;
     
-    // Новые элементы для LCD Визуализации
+    // Р­Р»РµРјРµРЅС‚С‹ РґР»СЏ LCD Р’РёР·СѓР°Р»РёР·Р°С†РёРё
     private TextField lcdVisTextField;
     private ChoiceGroup lcdVisSizeChoice;
     private ChoiceGroup lcdVisColorChoice;
     
-    // Элементы управления обводкой
+    // Р­Р»РµРјРµРЅС‚С‹ СѓРїСЂР°РІР»РµРЅРёСЏ РѕР±РІРѕРґРєРѕР№
     private ChoiceGroup skOutlineChoice;
     private ChoiceGroup skColorChoice;
     private Command saveSettingsCmd;
@@ -46,7 +46,7 @@ public class HDD40Player extends MIDlet implements CommandListener {
     private TextBox logBox;
     private Command backCmd;
     
-    // --- ГЛОБАЛЬНЫЕ НАСТРОЙКИ ---
+    // --- Р“Р›РћР‘РђР›Р¬РќР«Р• РќРђРЎРўР РћР™РљР ---
     public int bufferTimeSec = 2; 
     public int visMode = 2;       
     public int visSubMode = 0;    
@@ -95,7 +95,7 @@ public class HDD40Player extends MIDlet implements CommandListener {
             mainMenu = new List("Menu", List.IMPLICIT);
             mainMenu.append("Settings", null);
             mainMenu.append("Add Custom URL", null);
-            mainMenu.append("Import M3U Playlist", null); // Новый пункт меню
+            mainMenu.append("Import M3U/PLS Playlist", null); // РћР±РЅРѕРІР»РµРЅРЅС‹Р№ РїСѓРЅРєС‚ РјРµРЅСЋ
             mainMenu.append("About", null);
             mainMenu.append("Debug Logs", null);
             
@@ -219,12 +219,11 @@ public class HDD40Player extends MIDlet implements CommandListener {
         Display.getDisplay(this).setCurrent(ui);
     }
     
-    public void onM3UImported() {
-        // Вызывается после парсинга файла
+    public void onPlaylistImported() {
         saveSettings();
         ui.setStationIndex(stationNames.size() - 1);
         Display.getDisplay(this).setCurrent(ui);
-        log("M3U Import OK");
+        log("Playlist Import OK");
     }
 
     private void showSettingsForm() {
@@ -295,14 +294,10 @@ public class HDD40Player extends MIDlet implements CommandListener {
                 aboutForm.append(beardItem);
             } catch (Exception e) {}
             String text = 
-                "Приветствую тебя, любитель старых, но не бесполезных технологий.\n" +
-                "Спасибо, что используешь это приложение, созданное с любовью к ретро-девайсам. Надеюсь, оно окажется для тебя полезным. Оставайся на нашей волне 40gbFm!\n\n" +
-                
-				"Найти нас в сети:.\n" +
-				"YT:@HDD40Gb.\n" +
-				"TG:t.me/IDE_HDD40Gb.\n" +
-				"С уважением к пердолингу.\n" +
-                "Основатель HDD40Gb — Дядя Алех aka [Tualatin]\n" +
+                "РџСЂРёРІРµС‚СЃС‚РІСѓСЋ С‚РµР±СЏ, Р»СЋР±РёС‚РµР»СЊ СЃС‚Р°СЂС‹С…, РЅРѕ РЅРµ Р±РµСЃРїРѕР»РµР·РЅС‹С… С‚РµС…РЅРѕР»РѕРіРёР№.\n" +
+                "РЎРїР°СЃРёР±Рѕ, С‡С‚Рѕ РёСЃРїРѕР»СЊР·СѓРµС€СЊ СЌС‚Рѕ РїСЂРёР»РѕР¶РµРЅРёРµ. РћСЃС‚Р°РІР°Р№СЃСЏ РЅР° РЅР°С€РµР№ РІРѕР»РЅРµ 40gbFm!\n\n" +
+                "РЎ СѓРІР°Р¶РµРЅРёРµРј Рє РїРµСЂРґРѕР»РёРЅРіСѓ.\n" +
+                "РћСЃРЅРѕРІР°С‚РµР»СЊ HDD40Gb вЂ” Р”СЏРґСЏ РђР»РµС… aka [Tualatin]\n" +
                 "made in Summertime Sadness (c) 2026";
             aboutForm.append(new StringItem(null, text));
             aboutForm.addCommand(backCmd);
@@ -329,9 +324,9 @@ public class HDD40Player extends MIDlet implements CommandListener {
                 if (idx == 0) showSettingsForm();
                 else if (idx == 1) showUrlForm();
                 else if (idx == 2) {
-                    if (m3uBrowser == null) m3uBrowser = new M3UBrowser(this);
-                    m3uBrowser.loadRoots();
-                    Display.getDisplay(this).setCurrent(m3uBrowser);
+                    if (playlistBrowser == null) playlistBrowser = new PlaylistBrowser(this);
+                    playlistBrowser.loadRoots();
+                    Display.getDisplay(this).setCurrent(playlistBrowser);
                 }
                 else if (idx == 3) showAboutForm();
                 else if (idx == 4) showLogBox();
@@ -367,14 +362,14 @@ public class HDD40Player extends MIDlet implements CommandListener {
     }
 }
 
-// --- НОВЫЙ КЛАСС ФАЙЛОВОГО БРАУЗЕРА ---
-class M3UBrowser extends List implements CommandListener {
+// --- Р‘Р РђРЈР—Р•Р  РџР›Р•Р™Р›РРЎРўРћР’ (M3U / PLS) ---
+class PlaylistBrowser extends List implements CommandListener {
     private HDD40Player midlet;
     private String currentPath = "";
     private Command backCmd = new Command("Back", Command.BACK, 1);
     
-    public M3UBrowser(HDD40Player midlet) {
-        super("Select M3U File", List.IMPLICIT);
+    public PlaylistBrowser(HDD40Player midlet) {
+        super("Select Playlist", List.IMPLICIT);
         this.midlet = midlet;
         addCommand(backCmd);
         setCommandListener(this);
@@ -402,8 +397,9 @@ class M3UBrowser extends List implements CommandListener {
             Enumeration e = fc.list();
             while (e.hasMoreElements()) {
                 String f = (String) e.nextElement();
-                // Показываем только папки и m3u файлы
-                if (f.endsWith("/") || f.toLowerCase().endsWith(".m3u")) {
+                String fLower = f.toLowerCase();
+                // РџРѕРєР°Р·С‹РІР°РµРј РїР°РїРєРё, .m3u Рё .pls С„Р°Р№Р»С‹
+                if (f.endsWith("/") || fLower.endsWith(".m3u") || fLower.endsWith(".pls")) {
                     append(f, null);
                 }
             }
@@ -414,11 +410,11 @@ class M3UBrowser extends List implements CommandListener {
         }
     }
     
-    private void parseM3U(String path) {
+    private void parsePlaylist(String path) {
+        boolean isPls = path.toLowerCase().endsWith(".pls");
         try {
             FileConnection fc = (FileConnection) Connector.open("file:///" + path, Connector.READ);
             InputStream is = fc.openInputStream();
-            // Используем UTF-8 ридер для защиты от кракозябр
             InputStreamReader reader = new InputStreamReader(is, "UTF-8");
             
             StringBuffer lineBuf = new StringBuffer();
@@ -429,13 +425,33 @@ class M3UBrowser extends List implements CommandListener {
                 if (c == '\n' || c == '\r') {
                     if (lineBuf.length() > 0) {
                         String line = lineBuf.toString().trim();
-                        if (line.startsWith("#EXTINF:")) {
-                            int comma = line.indexOf(',');
-                            if (comma != -1) tempName = line.substring(comma + 1).trim();
-                        } else if (line.startsWith("http")) {
-                            midlet.stationNames.addElement(tempName);
-                            midlet.stationUrls.addElement(line);
-                            tempName = "Imported Station"; // сброс для следующего
+                        String lineLower = line.toLowerCase();
+                        
+                        if (isPls) {
+                            if (lineLower.startsWith("title")) {
+                                int eq = line.indexOf('=');
+                                if (eq != -1) tempName = line.substring(eq + 1).trim();
+                            } else if (lineLower.startsWith("file")) {
+                                int eq = line.indexOf('=');
+                                if (eq != -1) {
+                                    String url = line.substring(eq + 1).trim();
+                                    if (url.startsWith("http")) {
+                                        midlet.stationNames.addElement(tempName);
+                                        midlet.stationUrls.addElement(url);
+                                        tempName = "Imported Station"; // РЎР±СЂРѕСЃ
+                                    }
+                                }
+                            }
+                        } else {
+                            // Р›РѕРіРёРєР° M3U
+                            if (line.startsWith("#EXTINF:")) {
+                                int comma = line.indexOf(',');
+                                if (comma != -1) tempName = line.substring(comma + 1).trim();
+                            } else if (line.startsWith("http")) {
+                                midlet.stationNames.addElement(tempName);
+                                midlet.stationUrls.addElement(line);
+                                tempName = "Imported Station"; // РЎР±СЂРѕСЃ
+                            }
                         }
                         lineBuf.setLength(0);
                     }
@@ -443,22 +459,36 @@ class M3UBrowser extends List implements CommandListener {
                     lineBuf.append((char)c);
                 }
             }
-            // Проверяем последнюю строку без Enter
+            
+            // РџСЂРѕРІРµСЂРєР° РїРѕСЃР»РµРґРЅРµР№ СЃС‚СЂРѕРєРё Р±РµР· РїРµСЂРµРЅРѕСЃР° (EOF)
             if (lineBuf.length() > 0) {
                 String line = lineBuf.toString().trim();
-                if (line.startsWith("http")) {
-                    midlet.stationNames.addElement(tempName);
-                    midlet.stationUrls.addElement(line);
+                if (isPls) {
+                    if (line.toLowerCase().startsWith("file")) {
+                        int eq = line.indexOf('=');
+                        if (eq != -1) {
+                            String url = line.substring(eq + 1).trim();
+                            if (url.startsWith("http")) {
+                                midlet.stationNames.addElement(tempName);
+                                midlet.stationUrls.addElement(url);
+                            }
+                        }
+                    }
+                } else {
+                    if (line.startsWith("http")) {
+                        midlet.stationNames.addElement(tempName);
+                        midlet.stationUrls.addElement(line);
+                    }
                 }
             }
             
             reader.close();
             is.close();
             fc.close();
-            midlet.onM3UImported();
+            midlet.onPlaylistImported();
             
         } catch (Exception e) {
-            midlet.log("Parse M3U Err: " + e.getMessage());
+            midlet.log("Parse Err: " + e.getMessage());
             midlet.showPlayer();
         }
     }
@@ -468,7 +498,6 @@ class M3UBrowser extends List implements CommandListener {
             if (currentPath.length() == 0) {
                 midlet.showMainMenu();
             } else {
-                // Идем на уровень вверх (удаляем последний слеш и слово до предыдущего)
                 int lastSlash = currentPath.lastIndexOf('/', currentPath.length() - 2);
                 if (lastSlash == -1) {
                     loadRoots();
@@ -489,8 +518,8 @@ class M3UBrowser extends List implements CommandListener {
             } else if (selected.endsWith("/")) {
                 currentPath += selected;
                 loadDir(currentPath);
-            } else if (selected.toLowerCase().endsWith(".m3u")) {
-                parseM3U(currentPath + selected);
+            } else if (selected.toLowerCase().endsWith(".m3u") || selected.toLowerCase().endsWith(".pls")) {
+                parsePlaylist(currentPath + selected);
             }
         }
     }
@@ -507,6 +536,7 @@ class WinampUI extends Canvas implements Runnable {
     private boolean isRunning = true;
     private boolean showPlaylist = true;
     private int playlistCursor = 0; 
+    private int playlistOffset = 0; // РџРµСЂРµРјРµРЅРЅР°СЏ РґР»СЏ РїСЂРѕРєСЂСѓС‚РєРё РѕРєРЅР° РїР»РµР№Р»РёСЃС‚Р°
     private boolean showDeleteConfirm = false;
 
     private int marqueeOffset = 0;
@@ -538,6 +568,12 @@ class WinampUI extends Canvas implements Runnable {
         this.currentStationIdx = idx;
         this.playlistCursor = idx;
         this.marqueeOffset = 0; 
+        
+        // РЎРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РѕРєРЅР° РїСЂРё РґРѕР±Р°РІР»РµРЅРёРё РЅРѕРІРѕР№ СЃС‚Р°РЅС†РёРё
+        if (playlistCursor < playlistOffset || playlistCursor >= playlistOffset + 5) {
+            playlistOffset = playlistCursor - 4;
+            if (playlistOffset < 0) playlistOffset = 0;
+        }
     }
 
     public void run() {
@@ -786,13 +822,33 @@ class WinampUI extends Canvas implements Runnable {
             g.setClip(0, 0, w, h);
         }
 
+        // --- РЈРњРќРђРЇ РџР РћРљР РЈРўРљРђ РџР›Р•Р™Р›РРЎРўРђ (Р¤РРљРЎ РќРђР›РћР–Р•РќРРЇ) ---
         if (showPlaylist) {
             g.setFont(sysFont);
             g.setClip(6, plY + 1, w - 12, plH - 2);
-            for (int i = 0; i < midlet.stationNames.size(); i++) {
-                int itemY = plY + 5 + (i * 16);
+            
+            // Р’С‹С‡РёСЃР»СЏРµРј РјР°РєСЃРёРјСѓРј СЃС‚Р°РЅС†РёР№ РЅР° СЌРєСЂР°РЅРµ, РѕСЃС‚Р°РІР»СЏСЏ 25px СЃРЅРёР·Сѓ РґР»СЏ СЃРѕС„С‚-РєРЅРѕРїРѕРє
+            int maxItems = (plH - 25) / 16; 
+            if (maxItems < 1) maxItems = 1;
+            
+            // РћР±РЅРѕРІР»СЏРµРј РѕРєРЅРѕ РІРёРґРёРјРѕСЃС‚Рё (СЃРєСЂРѕР»Р»РёРЅРі)
+            if (playlistCursor < playlistOffset) {
+                playlistOffset = playlistCursor;
+            } else if (playlistCursor >= playlistOffset + maxItems) {
+                playlistOffset = playlistCursor - maxItems + 1;
+            }
+            
+            int endIdx = playlistOffset + maxItems;
+            if (endIdx > midlet.stationNames.size()) {
+                endIdx = midlet.stationNames.size();
+            }
+
+            // Р РёСЃСѓРµРј С‚РѕР»СЊРєРѕ СЃС‚Р°РЅС†РёРё РёР· РІРёРґРёРјРѕРіРѕ РѕРєРЅР°
+            for (int i = playlistOffset; i < endIdx; i++) {
+                int itemY = plY + 5 + ((i - playlistOffset) * 16);
                 if (i == playlistCursor) {
-                    g.setColor(0x333355); g.fillRect(6, itemY - 1, w - 12, 15);
+                    g.setColor(0x333355); 
+                    g.fillRect(6, itemY - 1, w - 12, 15);
                 }
                 g.setColor((i == currentStationIdx) ? 0x00FF00 : 0xFFFFFF);
                 g.drawString((String)midlet.stationNames.elementAt(i), 10, itemY, Graphics.TOP | Graphics.LEFT);
@@ -874,6 +930,8 @@ class WinampUI extends Canvas implements Runnable {
                     currentStationIdx = midlet.stationNames.size() - 1;
                     stopAudio(); 
                 }
+                // РџСЂРѕРІРµСЂСЏРµРј СЂР°РјРєРё СЃРјРµС‰РµРЅРёСЏ РѕРєРЅР°
+                if (playlistOffset > playlistCursor) playlistOffset = playlistCursor;
                 
                 midlet.saveSettings(); 
                 showDeleteConfirm = false;
